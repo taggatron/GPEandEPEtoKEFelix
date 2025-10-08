@@ -100,6 +100,11 @@
             Extension x (m)
             <input id="springX" type="number" min="0" step="0.1" value="3.0" />
           </label>
+          <label>
+            Launch angle (°)
+            <input id="launchAngle" type="range" min="15" max="75" step="1" value="45" />
+            <small class="note">Angle: <span id="launchAngleLabel">45</span>°</small>
+          </label>
         </div>
         <p class="note">Elastic potential energy: EPE = ½ k x². This converts to launch kinetic energy (downwards) at start.</p>
         <div class="actions">
@@ -119,6 +124,7 @@
         <div>
           <div class="metric"><span class="label">Initial GPE:</span> <span id="gpe0">—</span></div>
           <div class="metric"><span class="label">Elastic potential energy (EPE):</span> <span id="epe">—</span></div>
+          <div class="metric"><span class="label">Launch speed v₀:</span> <span id="v0">—</span></div>
           <div class="metric"><span class="label">Max KE:</span> <span id="keMax">—</span></div>
           <div class="metric"><span class="label">Energy dissipated (drag):</span> <span id="eDiss">—</span></div>
         </div>
@@ -158,6 +164,8 @@
           <!-- Ground strip -->
           <rect x="0" y="260" width="400" height="40" fill="#0a3a27"/>
           <!-- Astronaut -->
+          <!-- Trajectory path (shown in Catapult mode) -->
+          <path id="trajPath" d="" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5" fill="none" opacity="0.0"/>
           <g id="astronaut" transform="translate(200,20)">
             <!-- spring visual (only for catapult mode) -->
             <g id="spring" transform="translate(0,-30)">

@@ -33,7 +33,7 @@
   }
 
   function simulate(params){
-    const { m, h0, dt, withDrag, gravityModel, Cd, A, rho0, H, scenario, springK=0, springX=0 } = params;
+    const { m, h0, dt, withDrag, gravityModel, Cd, A, rho0, H, scenario, springK=0, springX=0, launchAngleDeg=45 } = params;
 
     // State variables (downwards positive for velocity, height is above ground)
     let t = 0;
@@ -41,9 +41,10 @@
       // 2D projectile motion from ground at ~45°; use total speed for KE and drag
       let x = 0, y = 0;
       const epe = 0.5 * springK * springX * springX; // J
-      const v0 = Math.sqrt(Math.max(0, 2*epe / m));
-      let vx = v0 * Math.cos(Math.PI/4);
-      let vy = v0 * Math.sin(Math.PI/4);
+  const v0 = Math.sqrt(Math.max(0, 2*epe / m));
+  const ang = (launchAngleDeg * Math.PI)/180;
+  let vx = v0 * Math.cos(ang);
+  let vy = v0 * Math.sin(ang);
       const ts = [], gpes = [], kes = [], diss = [], vs = [], hs = [], xs = [];
       let eD = 0;
       let vMax = 0, keMax = 0;
@@ -319,17 +320,18 @@
     const mode = $('mode').value;
     const springK = parseFloat($('springK')?.value || '0');
     const springX = parseFloat($('springX')?.value || '0');
+    const launchAngleDeg = parseFloat($('launchAngle')?.value || '45');
 
     const Cd = parseFloat($('Cd').value);
     const A = parseFloat($('area').value);
     const rho0 = parseFloat($('rho0').value);
     const H = parseFloat($('scaleH').value);
 
-  const params = { m, h0, dt, withDrag, gravityModel, Cd, A, rho0, H, scenario, springK, springX };
+  const params = { m, h0, dt, withDrag, gravityModel, Cd, A, rho0, H, scenario, springK, springX, launchAngleDeg };
     const res = simulate(params);
     let resNoDrag = null;
     if (mode === 'compare'){
-      resNoDrag = simulate({ m, h0, dt, withDrag:false, gravityModel, Cd, A, rho0, H, scenario, springK, springX });
+      resNoDrag = simulate({ m, h0, dt, withDrag:false, gravityModel, Cd, A, rho0, H, scenario, springK, springX, launchAngleDeg });
     }
 
     const gpe0 = initialGPE(m, h0, gravityModel);
@@ -337,6 +339,15 @@
     // EPE metric
     const epe = scenario === 'catapult' ? 0.5 * springK * springX * springX : 0;
     const epeEl = $('epe'); if (epeEl) epeEl.textContent = scenario === 'catapult' ? fmt(epe, 'J') : '—';
+    const v0El = $('v0');
+    if (v0El){
+      if (scenario === 'catapult' && epe > 0 && m > 0){
+        const v0 = Math.sqrt(2*epe/m);
+        v0El.textContent = fmt(v0, 'm/s');
+      } else {
+        v0El.textContent = '—';
+      }
+    }
     $('keMax').textContent = fmt(res.keMax, 'J');
     $('eDiss').textContent = withDrag ? fmt(res.eDiss, 'J') : '0 J (no drag)';
     $('vMax').textContent = fmt(res.vMax, 'm/s');
@@ -391,6 +402,13 @@
   }
   if (btnFreefall) btnFreefall.addEventListener('click', ()=>{ setScenarioUI('freefall'); run(); });
   if (btnCatapult) btnCatapult.addEventListener('click', ()=>{ setScenarioUI('catapult'); run(); });
+  // Launch angle slider label
+  const angleSlider = document.getElementById('launchAngle');
+  const angleLabel = document.getElementById('launchAngleLabel');
+  if (angleSlider && angleLabel){
+    angleSlider.addEventListener('input', ()=>{ angleLabel.textContent = angleSlider.value; });
+    angleLabel.textContent = angleSlider.value;
+  }
   // Presets
   $('preset').addEventListener('change', () => {
     const p = $('preset').value;
@@ -432,8 +450,9 @@
     const velLine = document.getElementById('velLine');
     const velText = document.getElementById('velText');
     const spring = document.getElementById('spring');
+    const traj = document.getElementById('trajPath');
     if (!g || !svg || !series) return;
-    const hs = series.h; const ts = series.t; const vs = series.v;
+    const hs = series.h; const ts = series.t; const vs = series.v; const xs = series.x || [];
     if (!hs.length) return;
     const h0 = hs[0];
     const hMax = Math.max(...hs, 1);
@@ -444,6 +463,27 @@
     const tTotal = ts[ts.length-1] || 1;
     const tStart = performance.now();
     const isCatapult = (document.getElementById('btnCatapult')?.classList.contains('active'));
+    // Build/clear trajectory path for catapult
+    if (traj){
+      if (isCatapult && xs.length === hs.length){
+        const xMax = Math.max(1, ...xs);
+        const yMax = Math.max(1, ...hs);
+        // Map sim x to ~120px span, y to 0..(yGround-yTop)
+        const xScale = 120 / xMax;
+        const yScale = (yGround - yTop) / yMax;
+        let d = '';
+        for (let i=0;i<xs.length;i++){
+          const px = 200 + xs[i] * xScale; // origin near astronaut start
+          const py = yGround - hs[i]*yScale;
+          d += (i===0?`M${px.toFixed(1)},${py.toFixed(1)}`:` L${px.toFixed(1)},${py.toFixed(1)}`);
+        }
+        traj.setAttribute('d', d);
+        traj.setAttribute('opacity', '0.6');
+      } else {
+        traj.setAttribute('d', '');
+        traj.setAttribute('opacity', '0');
+      }
+    }
     function step(now){
       const u = Math.min(1, (now - tStart)/playback);
       const simT = u * tTotal;
@@ -458,7 +498,8 @@
       if (isCatapult){
         const early = Math.min(1, simT / 1.0); // first 1s
         x = 200 + 40 * early; // small rightward motion
-        rot = 45 * (1 - early); // start at 45°, level out to 0° within 1s
+        const chosen = parseFloat(document.getElementById('launchAngle')?.value || '45');
+        rot = chosen * (1 - early); // start at chosen angle, level out to 0° within 1s
       }
       g.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${rot.toFixed(1)})`);
       // Update velocity arrow: map speed (m/s) to pixels

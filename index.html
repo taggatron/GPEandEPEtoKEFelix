@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GPE → KE: Felix's Stratospheric Freefall</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Energy Transfer in Felix Baumgartner's Freefall</h1>
+    <p class="subtitle">Interactive GCSE Physics simulation: Gravitational Potential Energy (GPE) converting to Kinetic Energy (KE)</p>
+    <div class="scenario-switch" role="group" aria-label="Scenario">
+      <button id="btnFreefall" class="scenario-btn active">Freefall</button>
+      <button id="btnCatapult" class="scenario-btn">Catapult</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Setup</h2>
+      <div class="grid form-grid">
+        <label>
+          Mass m (kg)
+          <input id="mass" type="number" min="1" step="0.5" value="118" />
+        </label>
+        <label>
+          Time step Δt (s)
+          <input id="dt" type="number" min="0.005" step="0.005" value="0.05" />
+        </label>
+      </div>
+
+      <div class="grid form-grid">
+        <label>
+          Mode
+          <select id="mode">
+            <option value="single" selected>Single run</option>
+            <option value="compare">Compare: drag vs no drag</option>
+          </select>
+        </label>
+        <label>
+          Preset (Cd / Area)
+          <select id="preset">
+            <option value="custom" selected>Custom (use fields)</option>
+            <option value="tucked">Tucked: Cd≈0.9, A≈0.7 m²</option>
+            <option value="spread">Spread: Cd≈1.2, A≈1.0 m²</option>
+            <option value="headfirst">Head-first: Cd≈0.7, A≈0.6 m²</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid form-grid">
+        <label class="toggle">
+          <input id="withDrag" type="checkbox" />
+          <span>Include air resistance (drag)</span>
+        </label>
+        <label id="h0Row">
+          Jump altitude h₀ (m)
+          <input id="h0" type="number" min="1000" step="100" value="39045" />
+        </label>
+        <label>
+          Gravity model
+          <select id="gravityModel">
+            <option value="simplified" selected>Simplified (g = 10 N/kg)</option>
+            <option value="real">Realistic (g varies with altitude)</option>
+          </select>
+        </label>
+      </div>
+
+      <details class="card details">
+        <summary>Drag model parameters (advanced)</summary>
+        <div class="grid form-grid">
+          <label>
+            Drag coefficient C<sub>d</sub>
+            <input id="Cd" type="number" min="0.2" step="0.05" value="1.0" />
+          </label>
+          <label>
+            Cross-sectional area A (m²)
+            <input id="area" type="number" min="0.2" step="0.05" value="0.8" />
+          </label>
+          <label>
+            Sea-level air density ρ₀ (kg/m³)
+            <input id="rho0" type="number" min="0.5" step="0.01" value="1.225" />
+          </label>
+          <label>
+            Scale height H (m)
+            <input id="scaleH" type="number" min="2000" step="100" value="8500" />
+          </label>
+        </div>
+      </details>
+
+      <details id="catapultPanel" class="card details" open hidden>
+        <summary>Catapult parameters (elastic launch)</summary>
+        <div class="grid form-grid">
+          <label>
+            Spring constant k (N/m)
+            <input id="springK" type="number" min="10" step="10" value="2000" />
+          </label>
+          <label>
+            Extension x (m)
+            <input id="springX" type="number" min="0" step="0.1" value="3.0" />
+          </label>
+        </div>
+        <p class="note">Elastic potential energy: EPE = ½ k x². This converts to launch kinetic energy (downwards) at start.</p>
+        <div class="actions">
+          <button id="launchBtn">Launch (Run simulation)</button>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button id="runBtn">Run simulation</button>
+        <button id="resetBtn" class="secondary">Reset to defaults</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Results</h2>
+      <div id="results" class="results-grid">
+        <div>
+          <div class="metric"><span class="label">Initial GPE:</span> <span id="gpe0">—</span></div>
+          <div class="metric"><span class="label">Elastic potential energy (EPE):</span> <span id="epe">—</span></div>
+          <div class="metric"><span class="label">Max KE:</span> <span id="keMax">—</span></div>
+          <div class="metric"><span class="label">Energy dissipated (drag):</span> <span id="eDiss">—</span></div>
+        </div>
+        <div>
+          <div class="metric"><span class="label">Max speed:</span> <span id="vMax">—</span></div>
+          <div class="metric"><span class="label">Time until ground:</span> <span id="tEnd">—</span></div>
+          <div class="metric"><span class="label">Impact speed:</span> <span id="vEnd">—</span></div>
+        </div>
+      </div>
+
+      <div class="note">
+        Notes:
+        <ul>
+          <li>GPE is measured relative to ground level: GPE = m g h (or with g(h)).</li>
+          <li>KE = ½ m v². With drag, some GPE is converted to thermal energy by air (energy dissipated).</li>
+          <li>This model uses a simple exponential atmosphere and constant C<sub>d</sub>, A. Real flight involves changing body position and Mach effects.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Astronaut animation</h2>
+      <div id="astroScene">
+        <svg id="astroSVG" viewBox="0 0 400 300" role="img" aria-label="Astronaut falling towards ground">
+          <defs>
+            <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#0b1022"/>
+              <stop offset="100%" stop-color="#0b1224"/>
+            </linearGradient>
+            <marker id="arrowHead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#22c55e"/>
+            </marker>
+          </defs>
+          <rect x="0" y="0" width="400" height="300" fill="url(#skyGrad)"/>
+          <!-- Earth horizon -->
+          <circle cx="200" cy="420" r="200" fill="#06304d"/>
+          <!-- Ground strip -->
+          <rect x="0" y="260" width="400" height="40" fill="#0a3a27"/>
+          <!-- Astronaut -->
+          <g id="astronaut" transform="translate(200,20)">
+            <!-- spring visual (only for catapult mode) -->
+            <g id="spring" transform="translate(0,-30)">
+              <polyline points="-8,0 -6,-4 -4,0 -2,-4 0,0 2,-4 4,0 6,-4 8,0" fill="none" stroke="#f59e0b" stroke-width="2" />
+            </g>
+            <!-- backpack -->
+            <rect x="-16" y="-10" width="10" height="24" rx="2" fill="#64748b"/>
+            <!-- body -->
+            <rect x="-10" y="-10" width="20" height="26" rx="4" fill="#e5e7eb"/>
+            <!-- head -->
+            <circle cx="0" cy="-18" r="8" fill="#cbd5e1"/>
+            <circle cx="0" cy="-18" r="6" fill="#0f172a"/>
+            <!-- arms -->
+            <rect x="-18" y="-6" width="8" height="6" rx="3" fill="#e5e7eb"/>
+            <rect x="10" y="-6" width="8" height="6" rx="3" fill="#e5e7eb"/>
+            <!-- legs -->
+            <rect x="-8" y="16" width="6" height="10" rx="2" fill="#e5e7eb"/>
+            <rect x="2" y="16" width="6" height="10" rx="2" fill="#e5e7eb"/>
+
+            <!-- Velocity arrow and label -->
+            <g id="velGroup" transform="translate(28,-4)">
+              <line id="velLine" x1="0" y1="0" x2="0" y2="40" stroke="#22c55e" stroke-width="3" marker-end="url(#arrowHead)" />
+              <text id="velText" x="10" y="14" fill="#22c55e" font-size="10" font-family="system-ui, sans-serif">0 m/s</text>
+            </g>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Charts</h2>
+      <div class="tabs">
+        <button class="tab active" data-chart="energy">Energy</button>
+        <button class="tab" data-chart="velocity">Velocity</button>
+        <button class="tab" data-chart="altitude">Altitude</button>
+      </div>
+      <div class="charts">
+        <canvas id="chartEnergy" width="1000" height="420" aria-label="Energy chart" role="img"></canvas>
+        <canvas id="chartVelocity" width="1000" height="320" aria-label="Velocity chart" role="img" hidden></canvas>
+        <canvas id="chartAltitude" width="1000" height="320" aria-label="Altitude chart" role="img" hidden></canvas>
+      </div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="card">
+      <h2>Formulae</h2>
+      <ul class="formulae">
+        <li>Gravitational potential energy: GPE = m g h</li>
+        <li>Kinetic energy: KE = ½ m v²</li>
+        <li>Elastic potential energy (spring): EPE = ½ k x²</li>
+        <li>Drag force: F<sub>d</sub> = ½ ρ C<sub>d</sub> A v² (opposes motion)</li>
+        <li>Atmospheric density model: ρ(h) = ρ₀ · exp(−h / H)</li>
+        <li>Gravity with altitude: g(h) = g₀ · (R / (R + h))² with R = 6.371×10⁶ m</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <small>For learning purposes. Defaults approximate Felix Baumgartner's 2012 jump (h₀≈39 km). © You</small>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
